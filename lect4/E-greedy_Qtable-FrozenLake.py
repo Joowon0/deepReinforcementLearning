@@ -4,12 +4,6 @@ import matplotlib.pyplot as plt
 from gym.envs.registration import register
 import random as pr
 
-def rargmax(vector):
-    # argmax that chooses randomly among eligiable maximum indices
-    m = np.amax(vector)
-    indices = np.nonzero(vector == m)[0] # max값을 가지면서 0이 아닌 index들을 가져온다고???????
-    return pr.choice(indices)
-
 # game settings
 register(
     id='FrozenLake-v3',
