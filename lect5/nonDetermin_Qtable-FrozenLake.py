@@ -11,7 +11,7 @@ Q = np.zeros([env.observation_space.n, env.action_space.n])
 # Set learning parameters
 learning_rate = .85
 dis = .99
-num_episodes = 2000
+num_episodes = 20000
 
 # Create a list to contain rewards and steps for each episode
 rList = []
