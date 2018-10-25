@@ -22,7 +22,7 @@ loss = tf.reduce_sum(tf.square(Y - Qpred))
 train = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(loss)
 
 # Set Q-learning related parameters
-dis = .99
+discountedReward = .99
 num_episodes = 2000
 
 # Create lists to contain total rewards and steps for each episode
@@ -45,23 +45,23 @@ with tf.Session() as sess:
 
         # The Q-Network training
         while not done:
-            # Choose an action greedily (with e change of random action) from the Q-network
+            # Find out Q^ for all actions in state s
             Qs = sess.run(Qpred, feed_dict={X: one_hot(s)})
+            # Choose an action by E-greedy algorithm from the Q-network
             if np.random.rand(1) < e:
                 a = env.action_space.sample()
             else:
                 a = np.argmax(Qs)
 
-            # Get new state and reward from environment
+            # Get new state and reward from executing a
             s1, reward, done, _ = env.step(a)
-            if done:
-                # Update Q not Qs+1, since it's terminal state
+            # Update Q_s with new value, using reward
+            if done: # terminal node
                 Qs[0, a] = reward
             else:
-                # Obtain the Q_s1 values by feeding the new state through our network
+                # Obtain Q_s1 values
                 Qs1 = sess.run(Qpred, feed_dict={X: one_hot(s1)})
-                # Update Q
-                Qs[0, a] = reward + dis * np.max(Qs1)
+                Qs[0, a] = reward + discountedReward * np.max(Qs1)
 
             # Train our network using target (Y) and predicted Q (Qpred) values
             sess.run(train, feed_dict={X: one_hot(s), Y: Qs})
