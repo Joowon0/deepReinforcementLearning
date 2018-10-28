@@ -62,8 +62,11 @@ def simple_replay_train(DQN, train_batch):
         else:
             Q[0, action] = reward + dis * np.max(DQN.predict(next_state))
 
-        # Train network using target and predicted Q
-        return DQN.update(x_stack, y_stack)
+        y_stack = np.vstack([y_stack, Q])
+        x_stack = np.vstack([x_stack, state])
+
+    # Train network using target and predicted Q
+    return DQN.update(x_stack, y_stack)
 
 
 def bot_play(mainDQN):
@@ -80,7 +83,7 @@ def bot_play(mainDQN):
             break
 
 def main():
-    max_episodes = 5000
+    max_episodes = 2000
 
     # store previous observations in replay memory
     replay_buffer = deque()
@@ -118,16 +121,16 @@ def main():
                 if step_count > 1000:
                     break
 
-            #print("Episode: {} steps: {}".format(episode, step_count))
+            print("Episode: {} steps: {}".format(episode, step_count))
             if step_count > 10000:
                 pass
 
             # train every 10 episodes
-            if episode % 10 == 0:
+            if episode % 10 == 9:
                 for _ in range(50):
                     minibatch = random.sample(replay_buffer, 10)
                     loss, _ = simple_replay_train(mainDQN, minibatch)
-                print("Episode: {} LOSS: {}".format(episode, loss))
+                print("LOSS: {}".format(loss))
 
         # Test network
         bot_play(mainDQN)

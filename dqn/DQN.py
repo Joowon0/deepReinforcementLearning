@@ -1,3 +1,6 @@
+import numpy as np
+import tensorflow as tf
+
 class DQN:
     def __init__(self, session, input_size, output_size, name="main"):
         self.sesseion = session
