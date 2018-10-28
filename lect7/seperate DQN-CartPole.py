@@ -49,25 +49,35 @@ class DQN:
     def update(self, x_stack, y_stack):
         return self.session.run([self._loss, self._train], feed_dict={self._X: x_stack, self._Y: y_stack})
 
-def simple_replay_train(DQN, train_batch):
-    x_stack = np.empty(0).reshape(0, DQN.input_size)
-    y_stack = np.empty(0).reshape(0, DQN.output_size)
+def replay_train(mainDQN, targetDQN, train_batch):
+    x_stack = np.empty(0).reshape(0, mainDQN.input_size)
+    y_stack = np.empty(0).reshape(0, mainDQN.output_size)
 
     # Get stored information from the buffer
     for state, action, reward, next_state, done in train_batch:
-        Q = DQN.predict(state)
+        Q = mainDQN.predict(state)
 
         if done:
             Q[0, action] = reward
         else:
-            Q[0, action] = reward + dis * np.max(DQN.predict(next_state))
+            Q[0, action] = reward + dis * np.max(targetDQN.predict(next_state))
 
         y_stack = np.vstack([y_stack, Q])
         x_stack = np.vstack([x_stack, state])
 
     # Train network using target and predicted Q
-    return DQN.update(x_stack, y_stack)
+    return mainDQN.update(x_stack, y_stack)
 
+def get_copy_var_ops(*, dest_scope_name="taregt", src_scope_name="main"):
+    op_holder = []
+
+    src_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=src_scope_name)
+    dest_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=dest_scope_name)
+
+    for src_var, dest_var in zip(src_vars, dest_vars):
+        op_holder.append(dest_var.assign(src_var.value()))
+
+    return op_holder
 
 def bot_play(mainDQN):
     # See our trained network in action
@@ -89,8 +99,13 @@ def main():
     replay_buffer = deque()
 
     with tf.Session() as sess:
-        mainDQN = DQN(sess, input_size, output_size)
+        mainDQN = DQN(sess, input_size, output_size, name="main")
+        targetDQN = DQN(sess, input_size, output_size, name="target")
         tf.global_variables_initializer().run()
+
+        # initial copy main_net -> target_net
+        copy_ops = get_copy_var_ops(dest_scope_name="target", src_scope_name="main")
+        sess.run(copy_ops)
 
         for episode in range(max_episodes):
             e = 1. / ((episode / 10) + 1)
@@ -129,8 +144,11 @@ def main():
             if episode % 10 == 9:
                 for _ in range(50):
                     minibatch = random.sample(replay_buffer, 10)
-                    loss, _ = simple_replay_train(mainDQN, minibatch)
+                    loss, _ = replay_train(mainDQN, targetDQN, minibatch)
                 print("LOSS: {}".format(loss))
+
+                # initial copy main_net -> target_net
+                sess.run(copy_ops)
 
         # Test network
         bot_play(mainDQN)
