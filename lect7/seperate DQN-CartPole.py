@@ -1,11 +1,17 @@
 import numpy as np
 import tensorflow as tf
 import random
-#import dqn
+import dqn
 from collections import deque
 
 import gym
-env = gym.make('CartPole-v0')
+from gym.envs.registration import register
+register(
+    id='CartPole-v2',
+    entry_point='gym.envs.classic_control:CartPoleEnv',
+    tags={'wrapper_config.TimeLimit.max_episode_steps': 10000},
+)
+env = gym.make('CartPole-v2')
 
 # Constants defining our neural network
 input_size = env.observation_space.shape[0]
@@ -13,41 +19,6 @@ output_size = env.action_space.n
 
 dis = 0.9
 REPLAY_MEMORY = 50000
-
-class DQN:
-    def __init__(self, session, input_size, output_size, name="main"):
-        self.session = session
-        self.input_size = input_size
-        self.output_size = output_size
-        self.net_name = name
-
-        self.build_network()
-
-
-    def build_network(self, h_size=10, l_rate=1e-1):
-        with tf.variable_scope(self.net_name):
-            self._X = tf.placeholder(tf.float32, [None, self.input_size], name="input_x")
-
-            # First layer
-            W1 = tf.get_variable("W1", shape=[self.input_size, h_size], initializer=tf.contrib.layers.xavier_initializer())
-            layer1 = tf.nn.tanh(tf.matmul(self._X, W1))
-
-            # Second layer
-            W2 = tf.get_variable("W2", shape=[h_size, self.output_size], initializer=tf.contrib.layers.xavier_initializer())
-            self._Qpred = tf.matmul(layer1, W2)
-
-        #
-        self._Y = tf.placeholder(shape=[None, self.output_size], dtype=tf.float32)
-
-        self._loss = tf.reduce_mean(tf.square(self._Y - self._Qpred))
-        self._train = tf.train.AdamOptimizer(learning_rate=l_rate).minimize(self._loss)
-
-    def predict(self, state):
-        x = np.reshape(state, [1, self.input_size])
-        return self.session.run(self._Qpred, feed_dict={self._X: x})
-
-    def update(self, x_stack, y_stack):
-        return self.session.run([self._loss, self._train], feed_dict={self._X: x_stack, self._Y: y_stack})
 
 def replay_train(mainDQN, targetDQN, train_batch):
     x_stack = np.empty(0).reshape(0, mainDQN.input_size)
@@ -68,7 +39,7 @@ def replay_train(mainDQN, targetDQN, train_batch):
     # Train network using target and predicted Q
     return mainDQN.update(x_stack, y_stack)
 
-def get_copy_var_ops(*, dest_scope_name="taregt", src_scope_name="main"):
+def get_copy_var_ops(*, dest_scope_name="target", src_scope_name="main"):
     op_holder = []
 
     src_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=src_scope_name)
@@ -99,8 +70,8 @@ def main():
     replay_buffer = deque()
 
     with tf.Session() as sess:
-        mainDQN = DQN(sess, input_size, output_size, name="main")
-        targetDQN = DQN(sess, input_size, output_size, name="target")
+        mainDQN = dqn.DQN(sess, input_size, output_size, name="main")
+        targetDQN = dqn.DQN(sess, input_size, output_size, name="target")
         tf.global_variables_initializer().run()
 
         # initial copy main_net -> target_net
@@ -133,7 +104,7 @@ def main():
 
                 state = next_state
                 step_count += 1
-                if step_count > 1000:
+                if step_count > 10000:
                     break
 
             print("Episode: {} steps: {}".format(episode, step_count))
